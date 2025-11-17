@@ -251,9 +251,7 @@ class TranscriberService:
                             "recorded_at": recorded_at,  # UTC timestamp
                             "local_date": local_date,  # Local date from audio_files
                             "local_time": local_time,  # Local time from audio_files
-                            "vibe_transcriber_result": final_transcription,  # TEXT型カラム
-                            "vibe_transcriber_status": "completed",
-                            "vibe_transcriber_processed_at": datetime.utcnow().isoformat()  # 現在のUTC時刻をISO形式で保存
+                            "vibe_transcriber_result": final_transcription  # TEXT型カラム
                         }
 
                         # upsert（既存データは更新、新規データは挿入）- リトライ付き
