@@ -412,5 +412,44 @@ class TranscriberService:
                 "asr_model": self.asr_provider.model_name
             }
 
+    async def update_status(self, device_id: str, recorded_at: str, status_field: str, status_value: str):
+        """
+        Update processing status in spot_features table
+
+        Args:
+            device_id: Device UUID
+            recorded_at: Recording timestamp
+            status_field: Field name ('vibe_status', 'behavior_status', 'emotion_status')
+            status_value: Status value ('pending', 'processing', 'completed', 'failed')
+        """
+        try:
+            # Update status in database
+            response = self.supabase.table('spot_features').update({
+                status_field: status_value,
+                'updated_at': datetime.utcnow().isoformat()
+            }).eq(
+                'device_id', device_id
+            ).eq(
+                'recorded_at', recorded_at
+            ).execute()
+
+            if response.data:
+                logger.info(f"Status updated: {device_id}/{recorded_at} - {status_field}={status_value}")
+            else:
+                # If no existing record, create one
+                insert_data = {
+                    'device_id': device_id,
+                    'recorded_at': recorded_at,
+                    status_field: status_value,
+                    'created_at': datetime.utcnow().isoformat(),
+                    'updated_at': datetime.utcnow().isoformat()
+                }
+                self.supabase.table('spot_features').insert(insert_data).execute()
+                logger.info(f"Status record created: {device_id}/{recorded_at} - {status_field}={status_value}")
+
+        except Exception as e:
+            logger.error(f"Failed to update status: {str(e)}")
+            raise
+
 # サービスインスタンス
 transcriber_service = TranscriberService() 
