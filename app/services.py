@@ -425,8 +425,7 @@ class TranscriberService:
         try:
             # Update status in database
             response = self.supabase.table('spot_features').update({
-                status_field: status_value,
-                'updated_at': datetime.utcnow().isoformat()
+                status_field: status_value
             }).eq(
                 'device_id', device_id
             ).eq(
