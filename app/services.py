@@ -64,7 +64,7 @@ class TranscriberService:
             # すべてのファイルを取得（ステータスに関係なく処理可能にする）
             # 明示的に処理を指定した場合は、completedも含めて再処理できるようにする
             query = self.supabase.table('audio_files') \
-                .select('file_path, device_id, recorded_at, local_date, time_block, transcriptions_status') \
+                .select('file_path, device_id, recorded_at, local_date, time_block') \
                 .eq('device_id', request.device_id) \
                 .eq('local_date', request.local_date)
             
@@ -300,25 +300,6 @@ class TranscriberService:
                                 if retry_count >= max_retries:
                                     raise
                         
-                        # audio_filesテーブルのtranscriptions_statusをcompletedに更新
-                        try:
-                            update_response = self.supabase.table('audio_files') \
-                                .update({'transcriptions_status': 'completed'}) \
-                                .eq('file_path', file_path) \
-                                .execute()
-                            
-                            # 更新が成功したかチェック
-                            if update_response.data:
-                                logger.info(f"✅ audio_filesテーブルのステータス更新成功: {len(update_response.data)}件更新")
-                                logger.info(f"   file_path: {file_path}")
-                            else:
-                                logger.warning(f"⚠️ audio_filesテーブルのステータス更新: 対象レコードが見つかりません")
-                                logger.warning(f"   file_path: {file_path}")
-                                
-                        except Exception as update_error:
-                            logger.error(f"❌ audio_filesテーブルのステータス更新エラー: {str(update_error)}")
-                            logger.error(f"   file_path: {file_path}")
-                        
                         successfully_transcribed.append({
                             'file_path': file_path
                         })
@@ -339,38 +320,11 @@ class TranscriberService:
                 error_msg = f"{audio_file['file_path']}: S3エラー - {str(e)}"
                 logger.error(f"❌ {error_msg}")
                 error_files.append(audio_file)
-                
-                # エラー時にステータスを更新
-                try:
-                    self.supabase.table('audio_files') \
-                        .update({'transcriptions_status': 'failed'}) \
-                        .eq('file_path', audio_file['file_path']) \
-                        .execute()
-                    logger.info(f"ステータスを'failed'に更新: {audio_file['file_path']}")
-                except Exception as status_update_error:
-                    logger.error(f"ステータス更新エラー: {str(status_update_error)}")
             
             except Exception as e:
                 error_message = str(e)
                 logger.error(f"❌ {audio_file['file_path']}: エラー - {error_message}")
                 error_files.append(audio_file)
-                
-                # エラー時にステータスを更新
-                try:
-                    # Quota exceededエラーの判定（エラーメッセージから検出）
-                    if "quota exceeded" in error_message.lower():
-                        status = 'quota_exceeded'
-                        logger.warning(f"⚠️ Azure利用上限エラーを検出しました")
-                    else:
-                        status = 'failed'
-                    
-                    self.supabase.table('audio_files') \
-                        .update({'transcriptions_status': status}) \
-                        .eq('file_path', audio_file['file_path']) \
-                        .execute()
-                    logger.info(f"ステータスを'{status}'に更新: {audio_file['file_path']}")
-                except Exception as status_update_error:
-                    logger.error(f"ステータス更新エラー: {str(status_update_error)}")
         
         # 処理結果を返す
         execution_time = time.time() - start_time
